@@ -2,7 +2,13 @@
 name = "regexrs"
 version = "0.1.0"
 edition = "2021"
-#rust-version = "1.76.0"
+rust-version = "1.76"
+crate-type = ["cdylib", "rlib"]
+
+
+[lib]
+name = "regexrs"
+crate-type = ["cdylib", "rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
