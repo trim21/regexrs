@@ -21,7 +21,10 @@ standard library `re` module.
 ```bash
 pip install maturin
 maturin build --release
-pip install target
+
+# this path may change based on your platform and regexrs version
+pip install target/wheels/regexrs-0.1.0-cp312-none-win_amd64.whl
+
 ```
 
 ## Status
