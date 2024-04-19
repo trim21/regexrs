@@ -358,11 +358,6 @@ jobs:
         with:
           components: llvm-tools
 
-      - run: pip install -U 'ruff==0.1.3' typing_extensions
-
-      # generate self-schema now, so we don't have to do so inside docker in maturin build
-      - run: python generate_self_schema.py
-
       - run: rustc --version --verbose
 
       - name: build initial wheel
