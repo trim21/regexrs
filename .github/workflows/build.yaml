@@ -414,7 +414,10 @@ jobs:
 #          path: dist
 
   inspect-pypi-assets:
-    needs: [build, build-sdist, build-pgo]
+    needs:
+     - build
+     - build-sdist
+     # - build-pgo
     runs-on: ubuntu-latest
 
     steps:
