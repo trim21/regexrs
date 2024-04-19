@@ -16,15 +16,19 @@ standard library `re` module.
 10
 ```
 
-## How to build from source
+## How to install from source
+
+You can use `pip` to build and install.
+
+```bash
+pip install .
+```
+
+If you want to build manually:
 
 ```bash
 pip install maturin
 maturin build --release
-
-# this path may change based on your platform and regexrs version
-pip install target/wheels/regexrs-0.1.0-cp312-none-win_amd64.whl
-
 ```
 
 ## Status
