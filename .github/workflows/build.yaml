@@ -528,49 +528,41 @@ jobs:
       - run: pip install regexrs --no-index --no-deps --find-links dist --force-reinstall
       - run: pytest
 
-#
-#  release:
-#    needs: [test-builds-arch, test-builds-os, build-sdist]
-#    if: success() && startsWith(github.ref, 'refs/tags/')
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: set up python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: '3.10'
-#
-#      - run: pip install -U twine
-#
-#      - name: check package version
-#        run: python .github/check_version.py
-#
-#      - name: get dist artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          pattern: pypi_files_*
-#          merge-multiple: true
-#          path: dist
-#
-#      - run: twine check --strict dist/*
-#
-#      - name: upload to pypi
-#        run: twine upload dist/*
-#        env:
-#          TWINE_USERNAME: __token__
-#          TWINE_PASSWORD: ${{ secrets.pypi_token }}
-#
-#      - name: get wasm dist artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: wasm_wheels
-#          path: wasm
-#
-#      - name: upload to github release
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          files: |
-#            wasm/*.whl
-#          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+
+  release:
+    needs: [test-builds-arch, test-builds-os, build-sdist]
+    if: success() && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - run: pip install -U twine
+
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pypi_files_*
+          merge-multiple: true
+          path: dist
+
+      - run: twine check --strict dist/*
+
+      - name: Release PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Release GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
