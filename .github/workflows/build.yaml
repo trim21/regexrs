@@ -1,13 +1,10 @@
-name: ci
-
 on:
   push:
     branches:
       - main
     tags:
-      - '**'
+      - 'v*.*.*'
   pull_request: {}
-
 env:
   COLUMNS: 150
 
@@ -23,8 +20,8 @@ jobs:
           - '3.10'
           - '3.11'
           - '3.12'
-#          - 'pypy3.9'
-#          - 'pypy3.10'
+          - 'pypy3.9'
+          - 'pypy3.10'
 
     runs-on: ubuntu-latest
 
@@ -326,103 +323,101 @@ jobs:
           name: pypi_files_${{ matrix.os }}_${{ matrix.target }}_${{ matrix.interpreter || 'all' }}_${{ matrix.manylinux }}
           path: dist
 
-#  build-pgo:
-#    name: build pgo-optimized on ${{ matrix.os }} / ${{ matrix.interpreter }}
-#    # only run on push to main and on release
-#    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'Full Build')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        os: [linux, windows, macos]
-#        interpreter: ['3.8', '3.9', '3.10', '3.11', '3.12']
-#        include:
-#          # standard runners with override for macos arm
-#          - os: linux
-#            runs-on: ubuntu-latest
-#          - os: windows
-#            ls: dir
-#            runs-on: windows-latest
-#          - os: macos
-#            runs-on: macos-latest-xlarge
-#        exclude:
-#          # macos arm only supported from 3.10 and up
-#          - os: macos
-#            interpreter: '3.8'
-#          - os: macos
-#            interpreter: '3.9'
-#
-#    runs-on: ${{ matrix.runs-on }}
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: set up python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: ${{ matrix.interpreter }}
-#
-#      - name: install rust stable
-#        id: rust-toolchain
-#        uses: dtolnay/rust-toolchain@stable
-#        with:
-#          components: llvm-tools
-#
-#      - run: pip install -U 'ruff==0.1.3' typing_extensions
-#
-#      # generate self-schema now, so we don't have to do so inside docker in maturin build
-#      - run: python generate_self_schema.py
-#
-#      - run: rustc --version --verbose
-#
-#      - name: build initial wheel
-#        uses: PyO3/maturin-action@v1
-#        with:
-#          manylinux: auto
-#          args: >
-#            --release
-#            --out pgo-wheel
-#            --interpreter ${{ matrix.interpreter }}
-#          rust-toolchain: stable
-#          docker-options: -e CI
-#        env:
-#          RUSTFLAGS: "-Cprofile-generate=${{ github.workspace }}/profdata"
-#
-#      - name: detect rust host
-#        run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
-#        shell: bash
-#
-#      - name: generate pgo data
-#        run: |
-#          pip install -U pip
-#          pip install -r tests/requirements.txt
-#          pip install regexrs --no-index --no-deps --find-links pgo-wheel --force-reinstall
-#          pytest tests/benchmarks
-#          rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
-#
-#      - name: merge pgo data
-#        run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata
-#
-#      - name: build pgo-optimized wheel
-#        uses: PyO3/maturin-action@v1
-#        with:
-#          manylinux: auto
-#          args: >
-#            --release
-#            --out dist
-#            --interpreter ${{ matrix.interpreter }}
-#          rust-toolchain: stable
-#          docker-options: -e CI
-#        env:
-#          RUSTFLAGS: "-Cprofile-use=${{ github.workspace }}/merged.profdata"
-#
-#      - run: ${{ matrix.ls || 'ls -lh' }} dist/
-#
-#      - uses: actions/upload-artifact@v4
-#        with:
-#          name: pypi_files_${{ matrix.os }}_${{ matrix.interpreter }}
-#          path: dist
+  build-pgo:
+    name: build pgo-optimized on ${{ matrix.os }} / ${{ matrix.interpreter }}
+    # only run on push to main and on release
+    if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'Full Build')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [linux, windows, macos]
+        interpreter: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        include:
+          # standard runners with override for macos arm
+          - os: linux
+            runs-on: ubuntu-latest
+          - os: windows
+            ls: dir
+            runs-on: windows-latest
+          - os: macos
+            runs-on: macos-latest
+        exclude:
+          # macos arm only supported from 3.10 and up
+          - os: macos
+            interpreter: '3.8'
+          - os: macos
+            interpreter: '3.9'
+
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.interpreter }}
+
+      - name: install rust stable
+        id: rust-toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools
+
+      - run: rustc --version --verbose
+
+      - name: build initial wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          manylinux: auto
+          args: >
+            --release
+            --out pgo-wheel
+            --interpreter ${{ matrix.interpreter }}
+          rust-toolchain: stable
+          docker-options: -e CI
+        env:
+          RUSTFLAGS: "-Cprofile-generate=${{ github.workspace }}/profdata"
+
+      - name: detect rust host
+        run: echo RUST_HOST=$(rustc -Vv | grep host | cut -d ' ' -f 2) >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: generate pgo data
+        run: |
+          pip install -U pip
+          pip install -r tests/requirements.txt
+          pip install regexrs --no-index --no-deps --find-links pgo-wheel --force-reinstall
+          pytest
+          rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
+
+      - name: merge pgo data
+        run: ${{ env.LLVM_PROFDATA }} merge -o ${{ github.workspace }}/merged.profdata ${{ github.workspace }}/profdata
+
+      - name: build pgo-optimized wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          manylinux: auto
+          args: >
+            --release
+            --out dist
+            --interpreter ${{ matrix.interpreter }}
+          rust-toolchain: stable
+          docker-options: -e CI
+        env:
+          RUSTFLAGS: "-Cprofile-use=${{ github.workspace }}/merged.profdata"
+
+      - run: ${{ matrix.ls || 'ls -lh' }} dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi_files_${{ matrix.os }}_${{ matrix.interpreter }}
+          path: dist
 
   inspect-pypi-assets:
-    needs: [build, build-sdist, build-pgo]
+    needs:
+     - build
+     - build-sdist
+     - build-pgo
     runs-on: ubuntu-latest
 
     steps:
@@ -506,7 +501,7 @@ jobs:
     name: test build on ${{ matrix.os }}
     needs:
     - build
-#    - build-pgo
+    - build-pgo
 
     strategy:
       fail-fast: false
@@ -533,49 +528,41 @@ jobs:
       - run: pip install regexrs --no-index --no-deps --find-links dist --force-reinstall
       - run: pytest
 
-#
-#  release:
-#    needs: [test-builds-arch, test-builds-os, build-sdist]
-#    if: success() && startsWith(github.ref, 'refs/tags/')
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: set up python
-#        uses: actions/setup-python@v5
-#        with:
-#          python-version: '3.10'
-#
-#      - run: pip install -U twine
-#
-#      - name: check package version
-#        run: python .github/check_version.py
-#
-#      - name: get dist artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          pattern: pypi_files_*
-#          merge-multiple: true
-#          path: dist
-#
-#      - run: twine check --strict dist/*
-#
-#      - name: upload to pypi
-#        run: twine upload dist/*
-#        env:
-#          TWINE_USERNAME: __token__
-#          TWINE_PASSWORD: ${{ secrets.pypi_token }}
-#
-#      - name: get wasm dist artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: wasm_wheels
-#          path: wasm
-#
-#      - name: upload to github release
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          files: |
-#            wasm/*.whl
-#          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+
+  release:
+    needs: [test-builds-arch, test-builds-os, build-sdist]
+    if: success() && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - run: pip install -U twine
+
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pypi_files_*
+          merge-multiple: true
+          path: dist
+
+      - run: twine check --strict dist/*
+
+      - name: Release PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Release GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
