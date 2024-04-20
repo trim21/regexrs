@@ -5,7 +5,7 @@ build-backend = 'maturin'
 [project]
 name = "regex-rust"
 license = "MIT"
-version = "0.1.0rc1"
+version = "0.1.0"
 authors = [
     {name = "Spencer Phillip Young", email="spencer.young@spyoung.com"}
 ]
@@ -27,6 +27,4 @@ classifiers = [
     'Operating System :: MacOS',
 ]
 readme = "README.md"
-dynamic = [
-    "version"
-]
+
