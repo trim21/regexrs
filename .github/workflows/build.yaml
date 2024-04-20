@@ -386,7 +386,7 @@ jobs:
         run: |
           pip install -U pip
           pip install -r tests/requirements.txt
-          pip install regexrs --no-index --no-deps --find-links pgo-wheel --force-reinstall
+          pip install regex-rust --no-index --no-deps --find-links pgo-wheel --force-reinstall
           pytest
           rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
@@ -494,7 +494,7 @@ jobs:
             python3 -m venv venv
             source venv/bin/activate
             python -m pip install -r tests/requirements.txt
-            python -m pip install regexrs --no-index --no-deps --find-links dist --force-reinstall
+            python -m pip install regex-rust --no-index --no-deps --find-links dist --force-reinstall
             python -m pytest
 
   test-builds-os:
@@ -525,7 +525,7 @@ jobs:
           path: dist
 
       - run: pip install -r tests/requirements.txt
-      - run: pip install regexrs --no-index --no-deps --find-links dist --force-reinstall
+      - run: pip install regex-rust --no-index --no-deps --find-links dist --force-reinstall
       - run: pytest
 
 

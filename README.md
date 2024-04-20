@@ -1,8 +1,11 @@
-# regexrs
+# regex-rust (regexrs)
 
 Leverages the Rust [`regex` crate](https://crates.io/crates/regex) with PyO3 to create an interface similar to the Python
 standard library `re` module.
 
+```bash
+pip install regex-rust
+```
 
 ```python
 >>> import regexrs as re

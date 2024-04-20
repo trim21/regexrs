@@ -1,3 +1,32 @@
 [build-system]
-requires = ["maturin", "setuptools"]
+requires = ["maturin>=1.0,<2.0", "setuptools"]
 build-backend = 'maturin'
+
+[project]
+name = "regex-rust"
+license = "MIT"
+version = "0.1.0rc1"
+authors = [
+    {name = "Spencer Phillip Young", email="spencer.young@spyoung.com"}
+]
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3 :: Only',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Programming Language :: Rust',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: POSIX :: Linux',
+    'Operating System :: Microsoft :: Windows',
+    'Operating System :: MacOS',
+]
+readme = "README.md"
+dynamic = [
+    "version"
+]
