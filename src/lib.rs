@@ -85,6 +85,8 @@ impl Pattern {
     }
 }
 
+
+
 #[pymethods]
 impl Pattern {
     pub fn r#match(&self, string: String, pos: Option<i32>) -> PyResult<Option<Match>> {
@@ -105,15 +107,69 @@ impl Pattern {
     }
 }
 
-#[pyfunction]
-fn compile(pattern: String) -> Pattern {
-    Pattern::new(pattern)
+fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
+    // Define the flags based on the Python re module flag values
+    const IGNORECASE: i32 = 2; // re.I or re.IGNORECASE
+    const MULTILINE: i32 = 8; // re.M or re.MULTILINE
+    const DOTALL: i32 = 16; // re.S or re.DOTALL
+    const VERBOSE: i32 = 64; // re.X or re.VERBOSE
+
+    let mut result = String::new();
+
+    // Start the inline flag string
+    result.push_str("(?");
+
+    if flags & IGNORECASE != 0 {
+        result.push('i');
+    }
+    if flags & MULTILINE != 0 {
+        result.push('m');
+    }
+    if flags & DOTALL != 0 {
+        result.push('s');
+    }
+    if flags & VERBOSE != 0 {
+        result.push('x');
+    }
+
+    // Close the inline flag string
+    result.push(')');
+
+    // Return the resulting inline flags or an empty string if no flags are set
+    if result.len() > 2 {
+        return format!("{}{}", result, pattern)
+    } else {
+        return pattern
+    }
 }
+
+
+#[pyfunction]
+fn compile(pattern: String, flags: Option<i32>) -> Pattern {
+    match flags {
+        Some(given_flags) => {
+            Pattern::new(python_regex_flags_to_inline(pattern, given_flags))
+        },
+        None => {
+            Pattern::new(pattern)
+        }
+    }
+}
+
 
 #[pymodule]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
+    m.add("NOFLAG", 0);
+    m.add("IGNORECASE", 2);
+    m.add("I", 2);
+    m.add("MULTILINE", 8);
+    m.add("M", 8);
+    m.add("DOTALL", 16);
+    m.add("S", 16);
+    m.add("VERBOSE", 64);
+    m.add("X", 64);
     m.add_function(wrap_pyfunction!(compile, m)?)?;
     Ok(())
 }
