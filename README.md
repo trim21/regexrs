@@ -45,5 +45,5 @@ Differences compared to standard lib:
 
 - The `endpos` argument normally found in the `re` module is not supported in `regexrs` for the `match`/`search`/`findall`/`finditer` methods.
 - Some regex features are not supported (because they are not supported by the `regex` crate), such as lookarounds and backreferences.
-- Until a future release, flags are expected to be part of your pattern. For example, instead of passing `re.I` for case-insensitive patterns or other flags, you would write these flags inline like `(?i)` at the beginning of your pattern.
+- Not all flags are supported. At present release, you may use the flags `IGNORECASE`, `MULTILINE`, `DOTALL` and `VERBOSE` (or their shorthand equivalents). These are translated to inline flags and prepended to your given pattern.
 - Until a future release, there is no cache for avoiding re-compiling the same patterns multiple times
