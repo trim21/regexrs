@@ -180,7 +180,7 @@ fn findall(py: Python, pattern: PyObject, string: String, flags: Option<i32>) ->
                 ));
             },
             None => {
-                pat.regex.clone()
+                pat.regex
             }
         }
 
