@@ -17,6 +17,8 @@ pip install regex-rust
 0
 >>> m.endpos
 10
+>>> re.findall(pattern, 'hello rust')
+['hello', 'rust']
 ```
 
 ## How to install from source
