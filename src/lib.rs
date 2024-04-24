@@ -89,11 +89,11 @@ impl Pattern {
 
 #[pymethods]
 impl Pattern {
-    pub fn r#match(&self, string: String, pos: Option<i32>) -> PyResult<Option<Match>> {
-        // todo: implement with find_at when `pos` is provided
-        let m = self.regex.find(string.as_str());
+    pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
+        let p = pos.unwrap_or(0);
+        let m = self.regex.find_at(string.as_str(), p);
         match m {
-            Some(matched) => {
+            Some(matched) if matched.start() == p => {
                 let r = Match {
                     string: String::from(matched.as_str()),
                     re: self.clone(),
@@ -102,7 +102,7 @@ impl Pattern {
                 };
                 Ok(Some(r))
             }
-            None => Ok(None),
+            _ => Ok(None),
         }
     }
 }

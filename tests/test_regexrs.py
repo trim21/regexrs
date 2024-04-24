@@ -30,3 +30,13 @@ def test_findall_compiled_pattern_with_flag_errors():
 def test_findall_string():
     pattern = r'\w+'
     assert re.findall(pattern, 'hello rust') == ['hello', 'rust']
+
+
+def test_match_does_not_match():
+    pattern = re.compile('foo(?P<name>bar)')
+    assert pattern.match('123 foobar') is None
+
+
+def test_match_at_position():
+    pattern = re.compile('foo(?P<name>bar)')
+    assert pattern.match('123 foobar', 4) is not None
