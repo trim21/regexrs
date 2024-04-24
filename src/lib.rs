@@ -156,6 +156,45 @@ fn compile(pattern: String, flags: Option<i32>) -> Pattern {
     }
 }
 
+#[pyfunction]
+fn findall(py: Python, pattern: PyObject, string: String, flags: Option<i32>) -> PyResult<Vec<String>> {
+    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        match flags {
+            Some(given_flags) => {
+                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str()).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    format!("Invalid regex pattern: {}", e)
+                ))?
+            },
+            None => {
+                regex::Regex::new(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    format!("Invalid regex pattern: {}", e)
+                ))?
+            }
+        }
+
+    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
+        match flags {
+            Some(_) => {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Cannot use flags with compiled pattern"
+                ));
+            },
+            None => {
+                pat.regex.clone()
+            }
+        }
+
+    } else {
+        // Neither a string nor a Pattern object
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Pattern must be a string or a Pattern object"
+        ));
+    };
+
+    // Using the Regex object to find all matches
+    Ok(re.find_iter(&string).map(|mat| mat.as_str().to_string()).collect())
+}
+
 
 #[pymodule]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
@@ -171,5 +210,6 @@ fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("VERBOSE", 64);
     m.add("X", 64);
     m.add_function(wrap_pyfunction!(compile, m)?)?;
+    m.add_function(wrap_pyfunction!(findall, m)?)?;
     Ok(())
 }
