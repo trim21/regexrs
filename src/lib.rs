@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyNone, PyTuple};
 use regex;
 
-#[pyclass]
+#[pyclass(module = "regexrs")]
 struct Match {
     #[pyo3(get)]
     string: String,
@@ -69,7 +69,7 @@ impl Match {
     }
 }
 
-#[pyclass]
+#[pyclass(module = "regexrs")]
 #[derive(Clone)]
 struct Pattern {
     // #[pyo3(get)]
@@ -113,28 +113,32 @@ fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
     const VERBOSE: i32 = 64; // re.X or re.VERBOSE
 
     let mut result = String::new();
-
+    let mut flags_applied: i32 = 0;
     // Start the inline flag string
     result.push_str("(?");
 
     if flags & IGNORECASE != 0 {
         result.push('i');
+        flags_applied = flags_applied + 1;
     }
     if flags & MULTILINE != 0 {
         result.push('m');
+        flags_applied = flags_applied + 1;
     }
     if flags & DOTALL != 0 {
         result.push('s');
+        flags_applied = flags_applied + 1;
     }
     if flags & VERBOSE != 0 {
         result.push('x');
+        flags_applied = flags_applied + 1;
     }
 
     // Close the inline flag string
     result.push(')');
 
     // Return the resulting inline flags or an empty string if no flags are set
-    if result.len() > 2 {
+    if flags_applied >= 1 {
         return format!("{}{}", result, pattern);
     } else {
         return pattern;
@@ -197,7 +201,123 @@ fn findall(
         .collect())
 }
 
+#[pyfunction]
+fn r#match(
+    py: Python,
+    pattern: PyObject,
+    string: String,
+    flags: Option<i32>,
+) -> PyResult<Option<Match>> {
+    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        match flags {
+            Some(given_flags) => {
+                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                    .map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "Invalid regex pattern: {}",
+                            e
+                        ))
+                    })?
+            }
+            None => regex::Regex::new(s).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid regex pattern: {}",
+                    e
+                ))
+            })?,
+        }
+    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
+        match flags {
+            Some(_) => {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Cannot use flags with compiled pattern",
+                ));
+            }
+            None => pat.regex,
+        }
+    } else {
+        // Neither a string nor a Pattern object
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Pattern must be a string or a Pattern object",
+        ));
+    };
+
+    // Using the Regex object to find all matches
+    let m = re.find(string.as_str());
+    match m {
+        Some(matched) if matched.start() == 0 => {
+            let r = Match {
+                string: String::from(matched.as_str()),
+                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
+                pos: matched.start(),
+                endpos: matched.end(),
+            };
+            Ok(Some(r))
+        }
+        _ => Ok(None),
+    }
+}
+
+
+#[pyfunction]
+fn fullmatch(
+    py: Python,
+    pattern: PyObject,
+    string: String,
+    flags: Option<i32>,
+) -> PyResult<Option<Match>> {
+    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        match flags {
+            Some(given_flags) => {
+                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                    .map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "Invalid regex pattern: {}",
+                            e
+                        ))
+                    })?
+            }
+            None => regex::Regex::new(s).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid regex pattern: {}",
+                    e
+                ))
+            })?,
+        }
+    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
+        match flags {
+            Some(_) => {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Cannot use flags with compiled pattern",
+                ));
+            }
+            None => pat.regex,
+        }
+    } else {
+        // Neither a string nor a Pattern object
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Pattern must be a string or a Pattern object",
+        ));
+    };
+
+    // Using the Regex object to find all matches
+    let m = re.find(string.as_str());
+    match m {
+        Some(matched) if (matched.start() == 0 && matched.end() == string.len()) => {
+            let r = Match {
+                string: String::from(matched.as_str()),
+                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
+                pos: matched.start(),
+                endpos: matched.end(),
+            };
+            Ok(Some(r))
+        }
+        _ => Ok(None),
+    }
+}
+
 #[pymodule]
+#[pyo3(name = "regexrs")]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
@@ -210,7 +330,17 @@ fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     m.add("S", 16);
     m.add("VERBOSE", 64);
     m.add("X", 64);
-    m.add_function(wrap_pyfunction!(compile, m)?)?;
-    m.add_function(wrap_pyfunction!(findall, m)?)?;
+    let compile_func = wrap_pyfunction!(compile, m)?;
+    let findall_func = wrap_pyfunction!(findall, m)?;
+    let match_func = wrap_pyfunction!(r#match, m)?;
+    let fullmatch_func = wrap_pyfunction!(fullmatch, m)?;
+    compile_func.setattr("__module__", "regexrs");
+    findall_func.setattr("__module__", "regexrs");
+    match_func.setattr("__module__", "regexrs");
+    fullmatch_func.setattr("__module__", "regexrs");
+    m.add_function(compile_func)?;
+    m.add_function(findall_func)?;
+    m.add_function(match_func)?;
+    m.add_function(fullmatch_func)?;
     Ok(())
 }

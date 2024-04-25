@@ -39,4 +39,20 @@ def test_match_does_not_match():
 
 def test_match_at_position():
     pattern = re.compile('foo(?P<name>bar)')
-    assert pattern.match('123 foobar', 4) is not None
+    assert pattern.match('123 foobar', pos=4) is not None
+
+
+def test_match_fn_does_not_match():
+    assert re.match(r'foo(?P<name>bar)', '123 foobar') is None
+
+
+def test_match_fn():
+    assert re.match(r'foo(?P<name>bar)', 'foobar') is not None
+
+
+def test_fullmatch_does_not_match():
+    assert re.fullmatch(r'\w+', 'foo 123') is None
+
+
+def test_fullmatch_fn():
+    assert re.fullmatch(r'\w+', 'foo') is not None
