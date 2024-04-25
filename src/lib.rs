@@ -135,6 +135,10 @@ fn get_byte_to_code_point(haystack: &str) -> Vec<usize> {
 impl Pattern {
 
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
+        if string.is_empty() {
+            return Ok(None)
+        }
+
         let (byte_to_code_point, code_point_to_byte) = get_byte_to_code_point_and_reverse(string.as_str());
         let p = code_point_to_byte[pos.unwrap_or(0)];
         if let Some(caps) = self.regex.captures_at(&string, p) {
@@ -274,6 +278,9 @@ fn r#match(
     flags: Option<i32>,
 ) -> PyResult<Option<Match>> {
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        if string.is_empty() {
+            return Ok(None)
+        }
         match flags {
             Some(given_flags) => {
                 regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
@@ -336,6 +343,9 @@ fn fullmatch(
     flags: Option<i32>,
 ) -> PyResult<Option<Match>> {
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        if string.is_empty() {
+            return Ok(None)
+        }
         match flags {
             Some(given_flags) => {
                 regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
