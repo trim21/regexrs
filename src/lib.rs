@@ -258,6 +258,64 @@ fn r#match(
     }
 }
 
+
+#[pyfunction]
+fn fullmatch(
+    py: Python,
+    pattern: PyObject,
+    string: String,
+    flags: Option<i32>,
+) -> PyResult<Option<Match>> {
+    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        match flags {
+            Some(given_flags) => {
+                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                    .map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "Invalid regex pattern: {}",
+                            e
+                        ))
+                    })?
+            }
+            None => regex::Regex::new(s).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid regex pattern: {}",
+                    e
+                ))
+            })?,
+        }
+    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
+        match flags {
+            Some(_) => {
+                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Cannot use flags with compiled pattern",
+                ));
+            }
+            None => pat.regex,
+        }
+    } else {
+        // Neither a string nor a Pattern object
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+            "Pattern must be a string or a Pattern object",
+        ));
+    };
+
+    // Using the Regex object to find all matches
+    let m = re.find(string.as_str());
+    match m {
+        Some(matched) if (matched.start() == 0 && matched.end() == string.len()) => {
+            let r = Match {
+                string: String::from(matched.as_str()),
+                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
+                pos: matched.start(),
+                endpos: matched.end(),
+            };
+            Ok(Some(r))
+        }
+        _ => Ok(None),
+    }
+}
+
 #[pymodule]
 #[pyo3(name = "regexrs")]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
@@ -275,11 +333,14 @@ fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     let compile_func = wrap_pyfunction!(compile, m)?;
     let findall_func = wrap_pyfunction!(findall, m)?;
     let match_func = wrap_pyfunction!(r#match, m)?;
+    let fullmatch_func = wrap_pyfunction!(fullmatch, m)?;
     compile_func.setattr("__module__", "regexrs");
     findall_func.setattr("__module__", "regexrs");
     match_func.setattr("__module__", "regexrs");
+    fullmatch_func.setattr("__module__", "regexrs");
     m.add_function(compile_func)?;
     m.add_function(findall_func)?;
     m.add_function(match_func)?;
+    m.add_function(fullmatch_func)?;
     Ok(())
 }

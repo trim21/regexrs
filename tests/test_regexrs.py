@@ -48,3 +48,11 @@ def test_match_fn_does_not_match():
 
 def test_match_fn():
     assert re.match(r'foo(?P<name>bar)', 'foobar') is not None
+
+
+def test_fullmatch_does_not_match():
+    assert re.fullmatch(r'\w+', 'foo 123') is None
+
+
+def test_fullmatch_fn():
+    assert re.fullmatch(r'\w+', 'foo') is not None
