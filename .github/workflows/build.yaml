@@ -386,8 +386,10 @@ jobs:
         run: |
           pip install -U pip
           pip install -r tests/requirements.txt
+          curl -o input-text.txt https://raw.githubusercontent.com/mariomka/regex-benchmark/master/input-text.txt
           pip install regex-rust --no-index --no-deps --find-links pgo-wheel --force-reinstall
           pytest
+          python benchmark.py ./input-text.txt
           rustup run stable bash -c 'echo LLVM_PROFDATA=$RUSTUP_HOME/toolchains/$RUSTUP_TOOLCHAIN/lib/rustlib/${{ env.RUST_HOST }}/bin/llvm-profdata >> "$GITHUB_ENV"'
 
       - name: merge pgo data

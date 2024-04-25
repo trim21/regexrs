@@ -23,6 +23,37 @@ pip install regex-rust
 <regexrs.Match object; span=(0, 3), match="foo">
 ```
 
+## Benchmarks
+
+`benchmark.py` is largely borrowed from the [regex-benchmark](https://github.com/mariomka/regex-benchmark) project. You are expected to pass in a path to the file of the [input-text.txt file](https://github.com/mariomka/regex-benchmark/blob/master/input-text.txt) to `benchmark.py`.
+
+This simple benchmark suggests that `regexrs` may be significantly faster than the `re` module from the standard library or even the [regex](https://pypi.org/project/regex/) library, at least in some use cases.
+Keep in mind that this benchmark tests just three simple use cases on a single large text input. Therefore, the insights we can infer from this benchmark are quite limited.
+In some cases, `regexrs` may be up to 2x _slower_ than `regex`, especially when creation of `Match` objects is necessary.
+
+Results as tested on Windows AMD64 Python 3.12.2 - times in ms (lower is better):
+
+| test  | regexrs   | re (stdlib) | [regex](https://pypi.org/project/regex/) | Compared to re    |
+|-------|-----------|-------------|------------------------------------------|-------------------|
+| Email | 12.51     | 354.53      | 690.15                                   | **28.34x faster** |
+| URI   | 4.82      | 282.69      | 430.26                                   | **58.65x faster** |
+| IP    | 4.71      | 321.37      | 25.43                                    | **68.23x faster** |
+
+To run the benchmarks yourself:
+
+```bash
+# be sure to have run `pip install regex-rust` first
+# to test regexrs:
+python benchmark.py /path/to/input-text.txt
+
+# to test stdlib re:
+python benchmark.py /path/to/input-text.txt re
+
+# be sure to have run `pip install regex` first
+# to test regex library:
+python benchmark.py /path/to/input-text.txt regex
+```
+
 ## How to install from source
 
 You can use `pip` to build and install.

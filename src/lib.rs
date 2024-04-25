@@ -12,7 +12,11 @@ struct Match {
     pos: usize,
     #[pyo3(get)]
     endpos: usize,
+    #[pyo3(get)]
+    lastgroup: Option<String>,
 }
+
+
 
 #[pymethods]
 impl Match {
@@ -68,6 +72,10 @@ impl Match {
         Ok(PyTuple::new(py, &groups).to_object(py))
     }
 
+    fn end(&self) -> PyResult<usize> {
+        return Ok(self.endpos);
+    }
+
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("<regexrs.Match object; span=({}, {}), match={:?}>", self.pos, self.endpos, self.string))
     }
@@ -76,8 +84,6 @@ impl Match {
 #[pyclass(module = "regexrs")]
 #[derive(Clone)]
 struct Pattern {
-    // #[pyo3(get)]
-    // flags: i32,
     regex: regex::Regex,
 }
 
@@ -89,24 +95,83 @@ impl Pattern {
     }
 }
 
+fn get_byte_to_code_point_and_reverse(haystack: &str) -> (Vec<usize>, Vec<usize>) {
+    // based on https://github.com/G-Research/ahocorasick_rs/blob/034e3f67e12198c08137bb9fb3153cb01cf5da31/src/lib.rs#L72-L88
+    // modified to provide additional reverse mapping
+
+    // Map UTF-8 byte index to Unicode code point index; the latter is what
+    // Python users expect.
+    let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
+    let mut code_point_to_byte = vec![usize::MAX; haystack.len() + 1];
+    let mut max_codepoint = 0;
+    for (codepoint_off, (byte_off, _)) in haystack.char_indices().enumerate() {
+        byte_to_code_point[byte_off] = codepoint_off;
+        code_point_to_byte[codepoint_off] = byte_off;
+        max_codepoint = codepoint_off;
+    }
+    // End index is exclusive (e.g. 0:3 is first 3 characters), so handle
+    // the case where pattern is at end of string.
+    if !haystack.is_empty() {
+        byte_to_code_point[haystack.len()] = max_codepoint + 1;
+    }
+    (byte_to_code_point, code_point_to_byte)
+}
+
+fn get_byte_to_code_point(haystack: &str) -> Vec<usize> {
+    // copied from https://github.com/G-Research/ahocorasick_rs/blob/034e3f67e12198c08137bb9fb3153cb01cf5da31/src/lib.rs#L72-L88
+
+    // Map UTF-8 byte index to Unicode code point index; the latter is what
+    // Python users expect.
+    let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
+    let mut max_codepoint = 0;
+    for (codepoint_off, (byte_off, _)) in haystack.char_indices().enumerate() {
+        byte_to_code_point[byte_off] = codepoint_off;
+        max_codepoint = codepoint_off;
+    }
+    // End index is exclusive (e.g. 0:3 is first 3 characters), so handle
+    // the case where pattern is at end of string.
+    if !haystack.is_empty() {
+        byte_to_code_point[haystack.len()] = max_codepoint + 1;
+    }
+    byte_to_code_point
+}
+
 #[pymethods]
 impl Pattern {
+
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
-        let p = pos.unwrap_or(0);
-        let m = self.regex.find_at(string.as_str(), p);
-        match m {
-            Some(matched) if matched.start() == p => {
-                let r = Match {
-                    string: String::from(matched.as_str()),
-                    re: self.clone(),
-                    pos: matched.start(),
-                    endpos: matched.end(),
-                };
-                Ok(Some(r))
-            }
-            _ => Ok(None),
+        if string.is_empty() {
+            return Ok(None)
         }
+
+        let (byte_to_code_point, code_point_to_byte) = get_byte_to_code_point_and_reverse(string.as_str());
+        let p = code_point_to_byte[pos.unwrap_or(0)];
+        if let Some(caps) = self.regex.captures_at(&string, p) {
+            if let Some(matched) = caps.get(0) {
+                if matched.start() == p {
+                    // Extract the name of the last matched group
+                    let last_group_name = self.regex.capture_names()
+                        .filter_map(|name| name) // Skip None values for unnamed groups
+                        .filter_map(|name| {
+                            // Only consider the group if it has a match
+                            caps.name(name).map(|_| name.to_string())
+                        })
+                        .last(); // Get the last group that had a match
+
+
+                    return Ok(Some(Match {
+                        string: String::from(matched.as_str()),
+                        re: self.clone(),
+                        pos: byte_to_code_point[matched.start()],
+                        endpos: byte_to_code_point[matched.end()],
+                        lastgroup: last_group_name,
+                    }));
+                }
+            }
+        }
+        Ok(None) // No match found or the match does not start at 'p'
     }
+
 
     fn __repr__(&self) -> PyResult<String> {
         // TODO: form a raw string repr
@@ -218,6 +283,9 @@ fn r#match(
     flags: Option<i32>,
 ) -> PyResult<Option<Match>> {
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        if string.is_empty() {
+            return Ok(None)
+        }
         match flags {
             Some(given_flags) => {
                 regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
@@ -245,28 +313,32 @@ fn r#match(
             None => pat.regex,
         }
     } else {
-        // Neither a string nor a Pattern object
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object",
-        ));
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
     };
 
-    // Using the Regex object to find all matches
-    let m = re.find(string.as_str());
-    match m {
-        Some(matched) if matched.start() == 0 => {
-            let r = Match {
-                string: String::from(matched.as_str()),
-                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
-                pos: matched.start(),
-                endpos: matched.end(),
-            };
-            Ok(Some(r))
-        }
-        _ => Ok(None),
-    }
-}
 
+    if let Some(caps) = re.captures(&string) {
+        if let Some(matched) = caps.get(0) {
+            // Check that the match starts exactly at the position `p`
+            if matched.start() == 0 {
+                let last_group_name = re.capture_names()
+                    .filter_map(|name| name)
+                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
+                    .last();
+                let byte_to_code_point = get_byte_to_code_point(&string);
+
+                return Ok(Some(Match {
+                    string: String::from(matched.as_str()),
+                    re: Pattern { regex: re },
+                    pos: byte_to_code_point[matched.start()],
+                    endpos: byte_to_code_point[matched.end()],
+                    lastgroup: last_group_name,
+                }));
+            }
+        }
+    }
+    Ok(None) // No valid match found or the match does not start at 'p'
+}
 
 #[pyfunction]
 fn fullmatch(
@@ -276,6 +348,9 @@ fn fullmatch(
     flags: Option<i32>,
 ) -> PyResult<Option<Match>> {
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
+        if string.is_empty() {
+            return Ok(None)
+        }
         match flags {
             Some(given_flags) => {
                 regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
@@ -303,27 +378,31 @@ fn fullmatch(
             None => pat.regex,
         }
     } else {
-        // Neither a string nor a Pattern object
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object",
-        ));
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
     };
 
-    // Using the Regex object to find all matches
-    let m = re.find(string.as_str());
-    match m {
-        Some(matched) if (matched.start() == 0 && matched.end() == string.len()) => {
-            let r = Match {
-                string: String::from(matched.as_str()),
-                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
-                pos: matched.start(),
-                endpos: matched.end(),
-            };
-            Ok(Some(r))
+    if let Some(caps) = re.captures(&string) {
+        if let Some(matched) = caps.get(0) {
+            if matched.start() == 0 && matched.end() == string.len() {
+                let last_group_name = re.capture_names()
+                    .filter_map(|name| name)
+                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
+                    .last();
+                let byte_to_code_point = get_byte_to_code_point(&string);
+
+                return Ok(Some(Match {
+                    string: String::from(matched.as_str()),
+                    re: Pattern { regex: re },
+                    pos: byte_to_code_point[matched.start()],
+                    endpos: byte_to_code_point[matched.end()],
+                    lastgroup: last_group_name,
+                }));
+            }
         }
-        _ => Ok(None),
     }
+    Ok(None)
 }
+
 
 #[pyfunction]
 fn escape(pattern: &str) -> PyResult<String> {
