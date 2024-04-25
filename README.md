@@ -19,6 +19,8 @@ pip install regex-rust
 10
 >>> re.findall(r'\w+', 'hello rust')
 ['hello', 'rust']
+>>> re.fullmatch(r'\w+', 'foo')
+<regexrs.Match object; span=(0, 3), match="foo">
 ```
 
 ## How to install from source
