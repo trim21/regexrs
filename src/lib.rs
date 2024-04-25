@@ -95,52 +95,48 @@ impl Pattern {
     }
 }
 
-fn grapheme_index_to_byte_index(text: &str, char_pos: usize) -> usize {
-    if char_pos == 0 {
-        return 0
+fn get_byte_to_code_point_and_reverse(haystack: &str) -> (Vec<usize>, Vec<usize>) {
+    // Map UTF-8 byte index to Unicode code point index; the latter is what
+    // Python users expect.
+    let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
+    let mut code_point_to_byte = vec![usize::MAX; haystack.len() + 1];
+    let mut max_codepoint = 0;
+    for (codepoint_off, (byte_off, _)) in haystack.char_indices().enumerate() {
+        byte_to_code_point[byte_off] = codepoint_off;
+        code_point_to_byte[codepoint_off] = byte_off;
+        max_codepoint = codepoint_off;
     }
-    let mut current_pos = 0;
-    let mut byte_index = 0;
-    let mut chars = text.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if current_pos == char_pos {
-            break;
-        }
-
-        if ch == '\r' {
-            if let Some(&'\n') = chars.peek() {
-                // Treat "\r\n" as two graphemes; move the position twice if needed
-                if current_pos + 1 == char_pos {
-                    // Move to the next character ('\n') if the position matches
-                    chars.next();  // Consume '\n'
-                    byte_index += ch.len_utf8(); // Add the length of '\r'
-                }
-            }
-        }
-
-        // Update the current grapheme position and byte index
-        current_pos += 1;
-        byte_index += ch.len_utf8();
+    // End index is exclusive (e.g. 0:3 is first 3 characters), so handle
+    // the case where pattern is at end of string.
+    if !haystack.is_empty() {
+        byte_to_code_point[haystack.len()] = max_codepoint + 1;
     }
-
-    byte_index
+    (byte_to_code_point, code_point_to_byte)
 }
 
-fn get_grapheme_start_end(text: &str, start_byte_index: usize, end_byte_index: usize,) -> (usize, usize) {
-    let start_slice = &text[..start_byte_index];
-    let start = start_slice.chars().count() + start_slice.matches("\r\n").count();
-    let end_slice = &text[start_byte_index..end_byte_index];
-    let end = start + end_slice.chars().count() + end_slice.matches("\r\n").count();
-    (start, end)
+fn get_byte_to_code_point(haystack: &str) -> Vec<usize> {
+    // Map UTF-8 byte index to Unicode code point index; the latter is what
+    // Python users expect.
+    let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
+    let mut max_codepoint = 0;
+    for (codepoint_off, (byte_off, _)) in haystack.char_indices().enumerate() {
+        byte_to_code_point[byte_off] = codepoint_off;
+        max_codepoint = codepoint_off;
+    }
+    // End index is exclusive (e.g. 0:3 is first 3 characters), so handle
+    // the case where pattern is at end of string.
+    if !haystack.is_empty() {
+        byte_to_code_point[haystack.len()] = max_codepoint + 1;
+    }
+    byte_to_code_point
 }
-
 
 #[pymethods]
 impl Pattern {
 
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
-        let p = grapheme_index_to_byte_index(string.as_str(), pos.unwrap_or(0));
+        let (byte_to_code_point, code_point_to_byte) = get_byte_to_code_point_and_reverse(string.as_str());
+        let p = code_point_to_byte[pos.unwrap_or(0)];
         if let Some(caps) = self.regex.captures_at(&string, p) {
             if let Some(matched) = caps.get(0) {
                 if matched.start() == p {
@@ -153,12 +149,12 @@ impl Pattern {
                         })
                         .last(); // Get the last group that had a match
 
-                    let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
+
                     return Ok(Some(Match {
                         string: String::from(matched.as_str()),
                         re: self.clone(),
-                        pos: start,
-                        endpos: end,
+                        pos: byte_to_code_point[matched.start()],
+                        endpos: byte_to_code_point[matched.end()],
                         lastgroup: last_group_name,
                     }));
                 }
@@ -317,13 +313,13 @@ fn r#match(
                     .filter_map(|name| name)
                     .filter_map(|name| caps.name(name).map(|_| name.to_string()))
                     .last();
-                let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
+                let byte_to_code_point = get_byte_to_code_point(&string);
 
                 return Ok(Some(Match {
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
-                    pos: start,
-                    endpos: end,
+                    pos: byte_to_code_point[matched.start()],
+                    endpos: byte_to_code_point[matched.end()],
                     lastgroup: last_group_name,
                 }));
             }
@@ -377,13 +373,13 @@ fn fullmatch(
                     .filter_map(|name| name)
                     .filter_map(|name| caps.name(name).map(|_| name.to_string()))
                     .last();
-                let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
+                let byte_to_code_point = get_byte_to_code_point(&string);
 
                 return Ok(Some(Match {
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
-                    pos: start,
-                    endpos: end,
+                    pos: byte_to_code_point[matched.start()],
+                    endpos: byte_to_code_point[matched.end()],
                     lastgroup: last_group_name,
                 }));
             }
