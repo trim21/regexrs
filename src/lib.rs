@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyNone, PyTuple};
 use regex;
-use unicode_segmentation::UnicodeSegmentation;
 
 #[pyclass(module = "regexrs")]
 struct Match {
@@ -318,12 +317,13 @@ fn r#match(
                     .filter_map(|name| name)
                     .filter_map(|name| caps.name(name).map(|_| name.to_string()))
                     .last();
+                let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
 
                 return Ok(Some(Match {
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
-                    pos: matched.start(),
-                    endpos: matched.start() + matched.as_str().graphemes(true).count(),
+                    pos: start,
+                    endpos: end,
                     lastgroup: last_group_name,
                 }));
             }
@@ -377,12 +377,13 @@ fn fullmatch(
                     .filter_map(|name| name)
                     .filter_map(|name| caps.name(name).map(|_| name.to_string()))
                     .last();
+                let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
 
                 return Ok(Some(Match {
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
-                    pos: matched.start(),
-                    endpos: matched.start() + matched.as_str().graphemes(true).count(),
+                    pos: start,
+                    endpos: end,
                     lastgroup: last_group_name,
                 }));
             }
