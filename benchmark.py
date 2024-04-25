@@ -19,6 +19,8 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+# See: https://github.com/mariomka/regex-benchmark/blob/master/python/benchmark.py
+# Modifications Copyright (c) 2024 Spencer Phillip Young under MIT License
 import argparse
 import sys
 from timeit import default_timer as timer
