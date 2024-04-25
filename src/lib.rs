@@ -85,15 +85,13 @@ impl Pattern {
     }
 }
 
-
-
 #[pymethods]
 impl Pattern {
-    pub fn r#match(&self, string: String, pos: Option<i32>) -> PyResult<Option<Match>> {
-        // todo: implement with find_at when `pos` is provided
-        let m = self.regex.find(string.as_str());
+    pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
+        let p = pos.unwrap_or(0);
+        let m = self.regex.find_at(string.as_str(), p);
         match m {
-            Some(matched) => {
+            Some(matched) if matched.start() == p => {
                 let r = Match {
                     string: String::from(matched.as_str()),
                     re: self.clone(),
@@ -102,7 +100,7 @@ impl Pattern {
                 };
                 Ok(Some(r))
             }
-            None => Ok(None),
+            _ => Ok(None),
         }
     }
 }
@@ -137,64 +135,67 @@ fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
 
     // Return the resulting inline flags or an empty string if no flags are set
     if result.len() > 2 {
-        return format!("{}{}", result, pattern)
+        return format!("{}{}", result, pattern);
     } else {
-        return pattern
+        return pattern;
     }
 }
-
 
 #[pyfunction]
 fn compile(pattern: String, flags: Option<i32>) -> Pattern {
     match flags {
-        Some(given_flags) => {
-            Pattern::new(python_regex_flags_to_inline(pattern, given_flags))
-        },
-        None => {
-            Pattern::new(pattern)
-        }
+        Some(given_flags) => Pattern::new(python_regex_flags_to_inline(pattern, given_flags)),
+        None => Pattern::new(pattern),
     }
 }
 
 #[pyfunction]
-fn findall(py: Python, pattern: PyObject, string: String, flags: Option<i32>) -> PyResult<Vec<String>> {
+fn findall(
+    py: Python,
+    pattern: PyObject,
+    string: String,
+    flags: Option<i32>,
+) -> PyResult<Vec<String>> {
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
         match flags {
             Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str()).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Invalid regex pattern: {}", e)
-                ))?
-            },
-            None => {
-                regex::Regex::new(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    format!("Invalid regex pattern: {}", e)
-                ))?
+                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                    .map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                            "Invalid regex pattern: {}",
+                            e
+                        ))
+                    })?
             }
+            None => regex::Regex::new(s).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid regex pattern: {}",
+                    e
+                ))
+            })?,
         }
-
     } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
         match flags {
             Some(_) => {
                 return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Cannot use flags with compiled pattern"
+                    "Cannot use flags with compiled pattern",
                 ));
-            },
-            None => {
-                pat.regex
             }
+            None => pat.regex,
         }
-
     } else {
         // Neither a string nor a Pattern object
         return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object"
+            "Pattern must be a string or a Pattern object",
         ));
     };
 
     // Using the Regex object to find all matches
-    Ok(re.find_iter(&string).map(|mat| mat.as_str().to_string()).collect())
+    Ok(re
+        .find_iter(&string)
+        .map(|mat| mat.as_str().to_string())
+        .collect())
 }
-
 
 #[pymodule]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
