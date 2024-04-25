@@ -17,7 +17,7 @@ pip install regex-rust
 0
 >>> m.endpos
 10
->>> re.findall(pattern, 'hello rust')
+>>> re.findall(r'\w+', 'hello rust')
 ['hello', 'rust']
 ```
 
