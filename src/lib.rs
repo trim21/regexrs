@@ -96,6 +96,9 @@ impl Pattern {
 }
 
 fn get_byte_to_code_point_and_reverse(haystack: &str) -> (Vec<usize>, Vec<usize>) {
+    // based on https://github.com/G-Research/ahocorasick_rs/blob/034e3f67e12198c08137bb9fb3153cb01cf5da31/src/lib.rs#L72-L88
+    // modified to provide additional reverse mapping
+
     // Map UTF-8 byte index to Unicode code point index; the latter is what
     // Python users expect.
     let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
@@ -115,6 +118,8 @@ fn get_byte_to_code_point_and_reverse(haystack: &str) -> (Vec<usize>, Vec<usize>
 }
 
 fn get_byte_to_code_point(haystack: &str) -> Vec<usize> {
+    // copied from https://github.com/G-Research/ahocorasick_rs/blob/034e3f67e12198c08137bb9fb3153cb01cf5da31/src/lib.rs#L72-L88
+
     // Map UTF-8 byte index to Unicode code point index; the latter is what
     // Python users expect.
     let mut byte_to_code_point = vec![usize::MAX; haystack.len() + 1];
