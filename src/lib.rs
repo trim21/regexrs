@@ -82,9 +82,9 @@ struct Pattern {
 }
 
 impl Pattern {
-    fn new(pattern: String) -> Self {
+    fn new(pattern: &str) -> Self {
         Pattern {
-            regex: regex::Regex::new(pattern.as_str()).unwrap(),
+            regex: regex::Regex::new(pattern).unwrap(),
         }
     }
 }
@@ -114,7 +114,7 @@ impl Pattern {
     }
 }
 
-fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
+fn python_regex_flags_to_inline(pattern: &str, flags: i32) -> String {
     // Define the flags based on the Python re module flag values
     const IGNORECASE: i32 = 2; // re.I or re.IGNORECASE
     const MULTILINE: i32 = 8; // re.M or re.MULTILINE
@@ -147,17 +147,17 @@ fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
     result.push(')');
 
     // Return the resulting inline flags or an empty string if no flags are set
-    if flags_applied >= 1 {
+    if flags_applied > 0 {
         return format!("{}{}", result, pattern);
     } else {
-        return pattern;
+        return pattern.to_owned();
     }
 }
 
 #[pyfunction]
-fn compile(pattern: String, flags: Option<i32>) -> Pattern {
+fn compile(pattern: &str, flags: Option<i32>) -> Pattern {
     match flags {
-        Some(given_flags) => Pattern::new(python_regex_flags_to_inline(pattern, given_flags)),
+        Some(given_flags) => Pattern::new(python_regex_flags_to_inline(pattern, given_flags).as_str()),
         None => Pattern::new(pattern),
     }
 }
@@ -172,7 +172,7 @@ fn findall(
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
         match flags {
             Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
                     .map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                             "Invalid regex pattern: {}",
@@ -220,7 +220,7 @@ fn r#match(
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
         match flags {
             Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
                     .map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                             "Invalid regex pattern: {}",
@@ -278,7 +278,7 @@ fn fullmatch(
     let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
         match flags {
             Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s.to_string(), given_flags).as_str())
+                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
                     .map_err(|e| {
                         PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
                             "Invalid regex pattern: {}",
@@ -325,6 +325,11 @@ fn fullmatch(
     }
 }
 
+#[pyfunction]
+fn escape(pattern: &str) -> PyResult<String> {
+    Ok(regex::escape(pattern))
+}
+
 #[pymodule]
 #[pyo3(name = "regexrs")]
 fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
@@ -343,13 +348,16 @@ fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
     let findall_func = wrap_pyfunction!(findall, m)?;
     let match_func = wrap_pyfunction!(r#match, m)?;
     let fullmatch_func = wrap_pyfunction!(fullmatch, m)?;
+    let escape_func = wrap_pyfunction!(escape, m)?;
     compile_func.setattr("__module__", "regexrs");
     findall_func.setattr("__module__", "regexrs");
     match_func.setattr("__module__", "regexrs");
     fullmatch_func.setattr("__module__", "regexrs");
+    escape_func.setattr("__module__", "regexrs");
     m.add_function(compile_func)?;
     m.add_function(findall_func)?;
     m.add_function(match_func)?;
     m.add_function(fullmatch_func)?;
+    m.add_function(escape_func)?;
     Ok(())
 }
