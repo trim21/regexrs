@@ -68,6 +68,10 @@ impl Match {
         Ok(PyTuple::new(py, &groups).to_object(py))
     }
 
+    fn end(&self) -> PyResult<usize> {
+        return Ok(self.endpos);
+    }
+
     fn __repr__(&self) -> PyResult<String> {
         Ok(format!("<regexrs.Match object; span=({}, {}), match={:?}>", self.pos, self.endpos, self.string))
     }
