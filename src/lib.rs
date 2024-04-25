@@ -12,7 +12,11 @@ struct Match {
     pos: usize,
     #[pyo3(get)]
     endpos: usize,
+    #[pyo3(get)]
+    lastgroup: Option<String>,
 }
+
+
 
 #[pymethods]
 impl Match {
@@ -95,22 +99,34 @@ impl Pattern {
 
 #[pymethods]
 impl Pattern {
+
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
         let p = pos.unwrap_or(0);
-        let m = self.regex.find_at(string.as_str(), p);
-        match m {
-            Some(matched) if matched.start() == p => {
-                let r = Match {
-                    string: String::from(matched.as_str()),
-                    re: self.clone(),
-                    pos: matched.start(),
-                    endpos: matched.end(),
-                };
-                Ok(Some(r))
+        if let Some(caps) = self.regex.captures_at(&string, p) {
+            if let Some(matched) = caps.get(0) {
+                if matched.start() == p {
+                    // Extract the name of the last matched group
+                    let last_group_name = self.regex.capture_names()
+                        .filter_map(|name| name) // Skip None values for unnamed groups
+                        .filter_map(|name| {
+                            // Only consider the group if it has a match
+                            caps.name(name).map(|_| name.to_string())
+                        })
+                        .last(); // Get the last group that had a match
+
+                    return Ok(Some(Match {
+                        string: String::from(matched.as_str()),
+                        re: self.clone(),
+                        pos: matched.start(),
+                        endpos: matched.end(),
+                        lastgroup: last_group_name,
+                    }));
+                }
             }
-            _ => Ok(None),
         }
+        Ok(None) // No match found or the match does not start at 'p'
     }
+
 
     fn __repr__(&self) -> PyResult<String> {
         // TODO: form a raw string repr
@@ -249,28 +265,31 @@ fn r#match(
             None => pat.regex,
         }
     } else {
-        // Neither a string nor a Pattern object
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object",
-        ));
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
     };
 
-    // Using the Regex object to find all matches
-    let m = re.find(string.as_str());
-    match m {
-        Some(matched) if matched.start() == 0 => {
-            let r = Match {
-                string: String::from(matched.as_str()),
-                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
-                pos: matched.start(),
-                endpos: matched.end(),
-            };
-            Ok(Some(r))
-        }
-        _ => Ok(None),
-    }
-}
 
+    if let Some(caps) = re.captures(&string) {
+        if let Some(matched) = caps.get(0) {
+            // Check that the match starts exactly at the position `p`
+            if matched.start() == 0 {
+                let last_group_name = re.capture_names()
+                    .filter_map(|name| name)
+                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
+                    .last();
+
+                return Ok(Some(Match {
+                    string: String::from(matched.as_str()),
+                    re: Pattern { regex: re },
+                    pos: matched.start(),
+                    endpos: matched.end(),
+                    lastgroup: last_group_name,
+                }));
+            }
+        }
+    }
+    Ok(None) // No valid match found or the match does not start at 'p'
+}
 
 #[pyfunction]
 fn fullmatch(
@@ -307,27 +326,30 @@ fn fullmatch(
             None => pat.regex,
         }
     } else {
-        // Neither a string nor a Pattern object
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object",
-        ));
+        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
     };
 
-    // Using the Regex object to find all matches
-    let m = re.find(string.as_str());
-    match m {
-        Some(matched) if (matched.start() == 0 && matched.end() == string.len()) => {
-            let r = Match {
-                string: String::from(matched.as_str()),
-                re: Pattern {regex: re}, // XXX: if we are passed a Pattern object, we should use that instead of creating a new one
-                pos: matched.start(),
-                endpos: matched.end(),
-            };
-            Ok(Some(r))
+    if let Some(caps) = re.captures(&string) {
+        if let Some(matched) = caps.get(0) {
+            if matched.start() == 0 && matched.end() == string.len() {
+                let last_group_name = re.capture_names()
+                    .filter_map(|name| name)
+                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
+                    .last();
+
+                return Ok(Some(Match {
+                    string: String::from(matched.as_str()),
+                    re: Pattern { regex: re },
+                    pos: matched.start(),
+                    endpos: matched.end(),
+                    lastgroup: last_group_name,
+                }));
+            }
         }
-        _ => Ok(None),
     }
+    Ok(None)
 }
+
 
 #[pyfunction]
 fn escape(pattern: &str) -> PyResult<String> {
