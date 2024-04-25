@@ -30,23 +30,25 @@ pip install regex-rust
 This simple benchmark suggests that `regexrs` may be significantly faster than the `re` module from the standard library, at least in some use cases. Keep in mind that
 this benchmark tests just three simple use cases on a single large text input and, therefore, its performance insights are quite limited.
 
-Results (as tested on Windows AMD64 Python 3.12.2):
+Results as tested on Windows AMD64 Python 3.12.2 using pgo-optimized build - times in ms (lower is better):
 
-| test  | regexrs           | re (stdlib)        | [regex](https://pypi.org/project/regex/) | Compared to re |
-|-------|-------------------|--------------------|------------------------------------------|----------------|
-| Email | 42.46120003517717 | 354.5320000266656  | 690.1515000499785                        | 8.35x faster   |
-| URI   | 46.36290005873889 | 282.6942999381572  | 430.2619999507442                        | 6.10x faster   |
-| IP    | 95.65870009828359 | 321.37410005088896 | 25.42890002951026                        | 3.36x faster   |
+| test  | regexrs   | re (stdlib) | [regex](https://pypi.org/project/regex/) | Compared to re    |
+|-------|-----------|-------------|------------------------------------------|-------------------|
+| Email | 12.51     | 354.53      | 690.15                                   | **28.34x faster** |
+| URI   | 4.82      | 282.69      | 430.26                                   | **58.65x faster** |
+| IP    | 4.71      | 321.37      | 25.43                                    | **68.23x faster** |
 
 To run the benchmarks yourself:
 
 ```bash
+# be sure to have run `pip install regex-rust` first
 # to test regexrs:
 python benchmark.py /path/to/input-text.txt
 
 # to test stdlib re:
 python benchmark.py /path/to/input-text.txt re
 
+# be sure to have run `pip install regex` first
 # to test regex library:
 python benchmark.py /path/to/input-text.txt regex
 ```
