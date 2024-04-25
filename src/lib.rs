@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::types::{PyNone, PyTuple};
 use regex;
+use unicode_segmentation::UnicodeSegmentation;
 
 #[pyclass(module = "regexrs")]
 struct Match {
@@ -118,7 +119,7 @@ impl Pattern {
                         string: String::from(matched.as_str()),
                         re: self.clone(),
                         pos: matched.start(),
-                        endpos: matched.end(),
+                        endpos: matched.start() + matched.as_str().graphemes(true).count(),
                         lastgroup: last_group_name,
                     }));
                 }
@@ -282,7 +283,7 @@ fn r#match(
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
                     pos: matched.start(),
-                    endpos: matched.end(),
+                    endpos: matched.start() + matched.as_str().graphemes(true).count(),
                     lastgroup: last_group_name,
                 }));
             }
@@ -341,7 +342,7 @@ fn fullmatch(
                     string: String::from(matched.as_str()),
                     re: Pattern { regex: re },
                     pos: matched.start(),
-                    endpos: matched.end(),
+                    endpos: matched.start() + matched.as_str().graphemes(true).count(),
                     lastgroup: last_group_name,
                 }));
             }

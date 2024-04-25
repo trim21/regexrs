@@ -15,3 +15,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 pyo3 = { version = "0.21.2", features = ["extension-module", "generate-import-lib"] }
 regex = "1.10.4"
+unicode-segmentation = "1.11.0"
