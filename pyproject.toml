@@ -5,7 +5,7 @@ build-backend = 'maturin'
 [project]
 name = "regex-rust"
 license = "MIT"
-version = "0.4.0rc2"
+version = "0.4.0rc3"
 authors = [
     {name = "Spencer Phillip Young", email="spencer.young@spyoung.com"}
 ]
