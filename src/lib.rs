@@ -67,6 +67,10 @@ impl Match {
 
         Ok(PyTuple::new(py, &groups).to_object(py))
     }
+
+    fn __repr__(&self) -> PyResult<String> {
+        Ok(format!("<regexrs.Match object; span=({}, {}), match={:?}>", self.pos, self.endpos, self.string))
+    }
 }
 
 #[pyclass(module = "regexrs")]
@@ -102,6 +106,11 @@ impl Pattern {
             }
             _ => Ok(None),
         }
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        // TODO: form a raw string repr
+        Ok(format!("regexrs.compile({:?})", self.regex.as_str()))
     }
 }
 
