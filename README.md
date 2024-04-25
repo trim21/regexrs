@@ -23,6 +23,34 @@ pip install regex-rust
 <regexrs.Match object; span=(0, 3), match="foo">
 ```
 
+## Benchmarks
+
+`benchmark.py` is largely borrowed from the [regex-benchmark](https://github.com/mariomka/regex-benchmark) project. You are expected to pass in a path to the file of the [input-text.txt file](https://github.com/mariomka/regex-benchmark/blob/master/input-text.txt) to `benchmark.py`.
+
+This simple benchmark suggests that `regexrs` may be significantly faster than the `re` module from the standard library, at least in some use cases. Keep in mind that
+this benchmark tests just three simple use cases on a single large text input and, therefore, its performance insights are quite limited.
+
+Results (as tested on Windows AMD64 Python 3.12.2):
+
+| test  | regexrs           | re (stdlib)        | [regex](https://pypi.org/project/regex/) | Compared to re |
+|-------|-------------------|--------------------|------------------------------------------|----------------|
+| Email | 42.46120003517717 | 354.5320000266656  | 690.1515000499785                        | 8.35x faster   |
+| URI   | 46.36290005873889 | 282.6942999381572  | 430.2619999507442                        | 6.10x faster   |
+| IP    | 95.65870009828359 | 321.37410005088896 | 25.42890002951026                        | 3.36x faster   |
+
+To run the benchmarks yourself:
+
+```bash
+# to test regexrs:
+python benchmark.py /path/to/input-text.txt
+
+# to test stdlib re:
+python benchmark.py /path/to/input-text.txt re
+
+# to test regex library:
+python benchmark.py /path/to/input-text.txt regex
+```
+
 ## How to install from source
 
 You can use `pip` to build and install.
