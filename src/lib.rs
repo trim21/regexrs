@@ -113,28 +113,32 @@ fn python_regex_flags_to_inline(pattern: String, flags: i32) -> String {
     const VERBOSE: i32 = 64; // re.X or re.VERBOSE
 
     let mut result = String::new();
-
+    let mut flags_applied: i32 = 0;
     // Start the inline flag string
     result.push_str("(?");
 
     if flags & IGNORECASE != 0 {
         result.push('i');
+        flags_applied = flags_applied + 1;
     }
     if flags & MULTILINE != 0 {
         result.push('m');
+        flags_applied = flags_applied + 1;
     }
     if flags & DOTALL != 0 {
         result.push('s');
+        flags_applied = flags_applied + 1;
     }
     if flags & VERBOSE != 0 {
         result.push('x');
+        flags_applied = flags_applied + 1;
     }
 
     // Close the inline flag string
     result.push(')');
 
     // Return the resulting inline flags or an empty string if no flags are set
-    if result.len() > 2 {
+    if flags_applied >= 1 {
         return format!("{}{}", result, pattern);
     } else {
         return pattern;
