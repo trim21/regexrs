@@ -85,8 +85,6 @@ impl Match {
 #[pyclass(module = "regexrs")]
 #[derive(Clone)]
 struct Pattern {
-    // #[pyo3(get)]
-    // flags: i32,
     regex: regex::Regex,
 }
 
@@ -98,11 +96,52 @@ impl Pattern {
     }
 }
 
+fn grapheme_index_to_byte_index(text: &str, char_pos: usize) -> usize {
+    if char_pos == 0 {
+        return 0
+    }
+    let mut current_pos = 0;
+    let mut byte_index = 0;
+    let mut chars = text.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if current_pos == char_pos {
+            break;
+        }
+
+        if ch == '\r' {
+            if let Some(&'\n') = chars.peek() {
+                // Treat "\r\n" as two graphemes; move the position twice if needed
+                if current_pos + 1 == char_pos {
+                    // Move to the next character ('\n') if the position matches
+                    chars.next();  // Consume '\n'
+                    byte_index += ch.len_utf8(); // Add the length of '\r'
+                }
+            }
+        }
+
+        // Update the current grapheme position and byte index
+        current_pos += 1;
+        byte_index += ch.len_utf8();
+    }
+
+    byte_index
+}
+
+fn get_grapheme_start_end(text: &str, start_byte_index: usize, end_byte_index: usize,) -> (usize, usize) {
+    let start_slice = &text[..start_byte_index];
+    let start = start_slice.chars().count() + start_slice.matches("\r\n").count();
+    let end_slice = &text[start_byte_index..end_byte_index];
+    let end = start + end_slice.chars().count() + end_slice.matches("\r\n").count();
+    (start, end)
+}
+
+
 #[pymethods]
 impl Pattern {
 
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
-        let p = pos.unwrap_or(0);
+        let p = grapheme_index_to_byte_index(string.as_str(), pos.unwrap_or(0));
         if let Some(caps) = self.regex.captures_at(&string, p) {
             if let Some(matched) = caps.get(0) {
                 if matched.start() == p {
@@ -115,11 +154,12 @@ impl Pattern {
                         })
                         .last(); // Get the last group that had a match
 
+                    let (start, end) = get_grapheme_start_end(&string, matched.start(), matched.end());
                     return Ok(Some(Match {
                         string: String::from(matched.as_str()),
                         re: self.clone(),
-                        pos: matched.start(),
-                        endpos: matched.start() + matched.as_str().graphemes(true).count(),
+                        pos: start,
+                        endpos: end,
                         lastgroup: last_group_name,
                     }));
                 }
