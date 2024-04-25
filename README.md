@@ -28,7 +28,7 @@ pip install regex-rust
 `benchmark.py` is largely borrowed from the [regex-benchmark](https://github.com/mariomka/regex-benchmark) project. You are expected to pass in a path to the file of the [input-text.txt file](https://github.com/mariomka/regex-benchmark/blob/master/input-text.txt) to `benchmark.py`.
 
 This simple benchmark suggests that `regexrs` may be significantly faster than the `re` module from the standard library or even the [regex](https://pypi.org/project/regex/) library, at least in some use cases.
-Keep in mind that this benchmark tests just three simple use cases on a single large text input. Therefore, the insights we can infer from this benchmark are quite limited. 
+Keep in mind that this benchmark tests just three simple use cases on a single large text input. Therefore, the insights we can infer from this benchmark are quite limited.
 In some cases, `regexrs` may be up to 2x _slower_ than `regex`, especially when creation of `Match` objects is necessary.
 
 Results as tested on Windows AMD64 Python 3.12.2 - times in ms (lower is better):
