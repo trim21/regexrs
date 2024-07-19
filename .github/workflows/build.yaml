@@ -4,6 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build_wheels:
+
     env:
       CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y
       CIBW_BEFORE_ALL_WINDOWS: rustup target add i686-pc-windows-msvc
@@ -23,10 +24,10 @@ jobs:
       # CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
     #   DYLD_LIBRARY_PATH=$REPAIR_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}
 
-
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-13, macos-14]
 
