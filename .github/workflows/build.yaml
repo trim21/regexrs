@@ -15,7 +15,7 @@ jobs:
       CIBW_TEST_REQUIRES: tox
       CIBW_TEST_COMMAND: "tox -e py --installpkg {wheel}"
       # Skip CPython 3.6 and CPython 3.7
-      CIBW_SKIP: cp36-* cp37-*
+      CIBW_SKIP: cp36-* cp37-* pp37-*
 
       # If you need to set DYLD_LIBRARY_PATH for MacOS, uncomment these lines and
       #  specify the library location in `REPAIR_LIBRARY_PATH` :
