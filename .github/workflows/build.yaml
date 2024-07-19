@@ -1,6 +1,10 @@
 name: Build
 
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      -
+  pull_request:
 
 jobs:
   build_wheels:
@@ -9,13 +13,17 @@ jobs:
       CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y
       CIBW_BEFORE_ALL_WINDOWS: rustup target add i686-pc-windows-msvc
       CIBW_ENVIRONMENT_LINUX: "PATH=$HOME/.cargo/bin:$PATH"
+
       # Use delvewheel on windows
       CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
       CIBW_TEST_REQUIRES: tox
       CIBW_TEST_COMMAND: "tox -e py --installpkg {wheel}"
-      # Skip CPython 3.6 and CPython 3.7
-      CIBW_SKIP: cp36-* cp37-* pp37-*
+      # Skip CPython 3.6, 3.7, pypy3.7, all musllinux_i686
+      # TODO: build musslinux wheels using maturin action?
+      CIBW_SKIP: cp36-* cp37-* pp37-* *-musllinux_i686
+
+
 
       # If you need to set DYLD_LIBRARY_PATH for MacOS, uncomment these lines and
       #  specify the library location in `REPAIR_LIBRARY_PATH` :
