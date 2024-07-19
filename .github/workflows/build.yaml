@@ -11,9 +11,8 @@ jobs:
       # Use delvewheel on windows
       CIBW_BEFORE_BUILD_WINDOWS: "pip install delvewheel"
       CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-
-    CIBW_TEST_REQUIRES: tox
-    CIBW_TEST_COMMAND: "tox -e py --installpkg {wheel}"
+      CIBW_TEST_REQUIRES: tox
+      CIBW_TEST_COMMAND: "tox -e py --installpkg {wheel}"
 
       # If you need to set DYLD_LIBRARY_PATH for MacOS, uncomment these lines and
       #  specify the library location in `REPAIR_LIBRARY_PATH` :
