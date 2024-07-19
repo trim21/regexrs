@@ -55,6 +55,43 @@ jobs:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
+  build_wheels_musllinux_i686:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        python-architecture:
+          - 'x86'
+          - 'x64'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.python-architecture }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: "i686-unknown-linux-musl"
+      - name: Build wheel (Linux)
+        uses: PyO3/maturin-action@v1
+        with:
+          target: i686
+          manylinux: musllinux_1_1
+          docker-options: -e CI
+          args: -i ${{ matrix.python-version }} --release --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-maturin-wheels-${{ matrix.python-version }}-${{ matrix.python-architecture}}-${{ strategy.job-index }}
+          path: ./dist/*.whl
+
 
   make_sdist:
     name: Make SDist
