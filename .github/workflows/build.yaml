@@ -19,7 +19,7 @@ jobs:
       CIBW_TEST_COMMAND: "tox -e py --installpkg {wheel}"
       # Skip CPython 3.6, 3.7, pypy3.7, all musllinux_i686
       # TODO: build musslinux wheels using maturin action?
-      CIBW_SKIP: cp36-* cp37-* pp37-* *-musllinux_i686
+      CIBW_SKIP: cp36-* cp37-* pp37-* *-musllinux_i686 *-win_arm64
 
 
 
