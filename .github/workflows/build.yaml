@@ -9,6 +9,7 @@ jobs:
       CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y
       CIBW_BEFORE_ALL_WINDOWS: rustup target add i686-pc-windows-msvc
       CIBW_ENVIRONMENT_LINUX: "PATH=$HOME/.cargo/bin:$PATH"
+      CIBW_BEFORE_ALL_MACOS: rustup target add aarch64-apple-darwin && rustup target add x86_64-apple-darwin
       CIBW_ARCHS: "all"
 
       # Use delvewheel on windows
