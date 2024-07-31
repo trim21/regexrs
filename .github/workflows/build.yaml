@@ -50,9 +50,11 @@ jobs:
           - python_version: "pypy3.10"
             target: x86
         include:
-          - os: windows
-            target: aarch64
-            interpreter: 3.11 3.12
+          - target: aarch64
+            python_version: "3.11"
+          - target: aarch64
+            python_version: "3.12"
+
 
     steps:
       - uses: actions/checkout@v4
