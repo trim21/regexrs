@@ -17,12 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le, i686]
-        manylinux: [auto, musllinux_1_2]
-        exclude:
-          - target: s390x
-            manylinux: musllinux_1_2
-          - target: ppc64le
-            manylinux: musllinux_1_2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,7 +32,31 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.target }}${{ matrix.manylinux == 'musllinux_1_2' && '-musllinux' || '' }}
+          name: wheels-linux-${{ matrix.target }}
+          path: dist
+
+  musllinux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, x86, aarch64, armv7, i686]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: musllinux_1_2
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-musllinux-${{ matrix.target }}
           path: dist
 
   windows:
@@ -143,7 +161,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux, windows, macos, emscripten, sdist]
+    needs: [linux, musllinux, windows, macos, emscripten, sdist]
     permissions:
       # Used to upload release artifacts
       contents: write
