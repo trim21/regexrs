@@ -13,11 +13,6 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le, i686]
         python_version: ["3.8", "3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
-        include:
-          - manylinux: musllinux_1_1
-            target: x86_64
-          - manylinux: musllinux_1_1
-            target: aarch64
 
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +31,30 @@ jobs:
         with:
           name: wheels-linux-${{ matrix.target }}-${{ matrix.python_version }}
           path: dist
+
+  musllinux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [x86_64, x86, aarch64, armv7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: musllinux_1_2
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-musllinux-${{ matrix.target }}
+          path: dist
+
 
   windows:
     runs-on: windows-latest
