@@ -42,24 +42,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x64, x86, i686]
+        target: [x64, x86]
         python_version: ["3.8", "3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
         exclude:
-          - target: i686
-            python_version: "pypy3.9"
-          - target: i686
-            python_version: "pypy3.10"
           - python_version: "pypy3.9"
             target: x86
           - python_version: "pypy3.10"
             target: x86
+        include:
+          - os: windows
+            target: aarch64
+            interpreter: 3.11 3.12
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
-          architecture: ${{ matrix.target != 'i686' && matrix.target || 'x86' }}
+          architecture: ${{ matrix.target != 'aarch64' && matrix.target || 'x64' }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
