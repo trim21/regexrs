@@ -13,6 +13,12 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le, i686]
         python_version: ["3.8", "3.9", "3.10", "3.11", "3.12", "pypy3.9", "pypy3.10"]
+        include:
+          - manylinux: musllinux_1_1
+            target: x86_64
+          - manylinux: musllinux_1_1
+            target: aarch64
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
