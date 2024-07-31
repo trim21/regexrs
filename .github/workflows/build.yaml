@@ -49,7 +49,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python_version }}
-          architecture: ${{ matrix.target != aarch64 && matrix.target || 'x64' }}
+          architecture: ${{ matrix.target != 'aarch64' && matrix.target || 'x64' }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
