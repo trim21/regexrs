@@ -18,6 +18,11 @@ jobs:
       matrix:
         target: [x86_64, x86, aarch64, armv7, s390x, ppc64le, i686]
         manylinux: [auto, musllinux_1_2]
+        exclude:
+          - target: s390x
+            manylinux: musllinux_1_2
+          - target: ppc64le
+            manylinux: musllinux_1_2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,11 +34,11 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
-          manylinux: ${{ matrix.manylinux }}
+          manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.target }}
+          name: wheels-linux-${{ matrix.target }}${{ matrix.manylinux == 'musllinux_1_2' && '-musllinux' || '' }}
           path: dist
 
   windows:
