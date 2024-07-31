@@ -36,6 +36,11 @@ jobs:
         with:
           name: wheels-linux-${{ matrix.target }}-${{ matrix.python_version }}
           path: dist
+      - name: tox
+        run: |
+          pip install tox
+          tox -e py --installpkg dist/*.whl
+
 
   windows:
     runs-on: windows-latest
@@ -72,6 +77,12 @@ jobs:
           name: wheels-windows-${{ matrix.target }}-${{ matrix.python_version }}
           path: dist
 
+      - name: tox
+        shell: bash
+        run: |
+          pip install tox
+          tox -e py --installpkg dist/*.whl
+
   macos:
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -103,6 +114,10 @@ jobs:
         with:
           name: wheels-macos-${{ matrix.target }}-${{ matrix.python_version }}
           path: dist
+      - name: tox
+        run: |
+          pip install tox
+          tox -e py --installpkg dist/*.whl
 
   sdist:
     runs-on: ubuntu-latest
