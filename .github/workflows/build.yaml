@@ -6,6 +6,54 @@ permissions:
   contents: read
 
 jobs:
+  test-python:
+    name: test ${{ matrix.python_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version: ['3.8', '3.9', '3.10', '3.11', '3.12', 'pypy3.9', 'pypy3.10']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test-v3
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install tox
+      - run: tox -e py
+
+  test-os:
+    name: test on ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu, macos, windows]
+
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install tox
+      - run: tox -e py
+
   linux:
     runs-on: ubuntu-latest
     strategy:
