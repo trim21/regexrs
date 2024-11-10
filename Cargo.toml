@@ -1,6 +1,6 @@
 [package]
 name = "regexrs"
-version = "0.4.0"
+version = "0.0.0"
 edition = "2021"
 rust-version = "1.76"
 crate-type = ["cdylib", "rlib"]
@@ -13,5 +13,5 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pyo3 = { version = "0.21.2", features = ["extension-module", "generate-import-lib"] }
+pyo3 = { version = "0.22.6", features = ["extension-module", "generate-import-lib", 'abi3-py310'] }
 regex = { version = "1.10.4" }

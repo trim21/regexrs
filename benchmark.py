@@ -32,7 +32,7 @@ parser.add_argument('library', choices=('re', 'regexrs', 'regex'), default='rege
 args = parser.parse_args()
 
 if args.library == 'regexrs':
-    import regexrs as re
+    import re_rs as re
 elif args.library == 're':
     import re
 elif args.library == 'regex':

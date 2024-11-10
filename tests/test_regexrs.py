@@ -1,5 +1,5 @@
 import pytest
-import regexrs as re
+import re_rs as re
 
 
 def test_simple():

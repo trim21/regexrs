@@ -16,12 +16,10 @@ struct Match {
     lastgroup: Option<String>,
 }
 
-
-
 #[pymethods]
 impl Match {
     #[pyo3(signature = (*args))]
-    fn group(&self, py: Python<'_>, args: &PyTuple) -> PyResult<PyObject> {
+    fn group(&self, py: Python<'_>, args: &Bound<'_, PyTuple>) -> PyResult<PyObject> {
         let caps = self
             .re
             .regex
@@ -48,7 +46,7 @@ impl Match {
         if groups.len() == 1 {
             Ok(groups[0].clone_ref(py))
         } else {
-            let tuple = PyTuple::new(py, &groups);
+            let tuple = PyTuple::new_bound(py, &groups);
             Ok(tuple.to_object(py))
         }
     }
@@ -69,7 +67,7 @@ impl Match {
             })
             .collect();
 
-        Ok(PyTuple::new(py, &groups).to_object(py))
+        Ok(PyTuple::new_bound(py, &groups).to_object(py))
     }
 
     fn end(&self) -> PyResult<usize> {
@@ -77,7 +75,10 @@ impl Match {
     }
 
     fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("<regexrs.Match object; span=({}, {}), match={:?}>", self.pos, self.endpos, self.string))
+        Ok(format!(
+            "<regexrs.Match object; span=({}, {}), match={:?}>",
+            self.pos, self.endpos, self.string
+        ))
     }
 }
 
@@ -138,26 +139,28 @@ fn get_byte_to_code_point(haystack: &str) -> Vec<usize> {
 
 #[pymethods]
 impl Pattern {
-
+    #[pyo3(signature=(string,pos=None))]
     pub fn r#match(&self, string: String, pos: Option<usize>) -> PyResult<Option<Match>> {
         if string.is_empty() {
-            return Ok(None)
+            return Ok(None);
         }
 
-        let (byte_to_code_point, code_point_to_byte) = get_byte_to_code_point_and_reverse(string.as_str());
+        let (byte_to_code_point, code_point_to_byte) =
+            get_byte_to_code_point_and_reverse(string.as_str());
         let p = code_point_to_byte[pos.unwrap_or(0)];
         if let Some(caps) = self.regex.captures_at(&string, p) {
             if let Some(matched) = caps.get(0) {
                 if matched.start() == p {
                     // Extract the name of the last matched group
-                    let last_group_name = self.regex.capture_names()
+                    let last_group_name = self
+                        .regex
+                        .capture_names()
                         .filter_map(|name| name) // Skip None values for unnamed groups
                         .filter_map(|name| {
                             // Only consider the group if it has a match
                             caps.name(name).map(|_| name.to_string())
                         })
                         .last(); // Get the last group that had a match
-
 
                     return Ok(Some(Match {
                         string: String::from(matched.as_str()),
@@ -172,6 +175,13 @@ impl Pattern {
         Ok(None) // No match found or the match does not start at 'p'
     }
 
+    fn findall(&self, string: String, flags: Option<i32>) -> PyResult<Vec<String>> {
+        Ok(self
+            .regex
+            .find_iter(&string)
+            .map(|mat| mat.as_str().to_string())
+            .collect())
+    }
 
     fn __repr__(&self) -> PyResult<String> {
         // TODO: form a raw string repr
@@ -179,230 +189,11 @@ impl Pattern {
     }
 }
 
-fn python_regex_flags_to_inline(pattern: &str, flags: i32) -> String {
-    // Define the flags based on the Python re module flag values
-    const IGNORECASE: i32 = 2; // re.I or re.IGNORECASE
-    const MULTILINE: i32 = 8; // re.M or re.MULTILINE
-    const DOTALL: i32 = 16; // re.S or re.DOTALL
-    const VERBOSE: i32 = 64; // re.X or re.VERBOSE
-
-    let mut result = String::new();
-    let mut flags_applied: i32 = 0;
-    // Start the inline flag string
-    result.push_str("(?");
-
-    if flags & IGNORECASE != 0 {
-        result.push('i');
-        flags_applied = flags_applied + 1;
-    }
-    if flags & MULTILINE != 0 {
-        result.push('m');
-        flags_applied = flags_applied + 1;
-    }
-    if flags & DOTALL != 0 {
-        result.push('s');
-        flags_applied = flags_applied + 1;
-    }
-    if flags & VERBOSE != 0 {
-        result.push('x');
-        flags_applied = flags_applied + 1;
-    }
-
-    // Close the inline flag string
-    result.push(')');
-
-    // Return the resulting inline flags or an empty string if no flags are set
-    if flags_applied > 0 {
-        return format!("{}{}", result, pattern);
-    } else {
-        return pattern.to_owned();
-    }
-}
-
 #[pyfunction]
+#[pyo3(signature = (pattern, flags=None))]
 fn compile(pattern: &str, flags: Option<i32>) -> Pattern {
-    match flags {
-        Some(given_flags) => Pattern::new(python_regex_flags_to_inline(pattern, given_flags).as_str()),
-        None => Pattern::new(pattern),
-    }
+    Pattern::new(pattern)
 }
-
-#[pyfunction]
-fn findall(
-    py: Python,
-    pattern: PyObject,
-    string: String,
-    flags: Option<i32>,
-) -> PyResult<Vec<String>> {
-    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
-        match flags {
-            Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
-                    .map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                            "Invalid regex pattern: {}",
-                            e
-                        ))
-                    })?
-            }
-            None => regex::Regex::new(s).map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Invalid regex pattern: {}",
-                    e
-                ))
-            })?,
-        }
-    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
-        match flags {
-            Some(_) => {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Cannot use flags with compiled pattern",
-                ));
-            }
-            None => pat.regex,
-        }
-    } else {
-        // Neither a string nor a Pattern object
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-            "Pattern must be a string or a Pattern object",
-        ));
-    };
-
-    // Using the Regex object to find all matches
-    Ok(re
-        .find_iter(&string)
-        .map(|mat| mat.as_str().to_string())
-        .collect())
-}
-
-#[pyfunction]
-fn r#match(
-    py: Python,
-    pattern: PyObject,
-    string: String,
-    flags: Option<i32>,
-) -> PyResult<Option<Match>> {
-    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
-        if string.is_empty() {
-            return Ok(None)
-        }
-        match flags {
-            Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
-                    .map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                            "Invalid regex pattern: {}",
-                            e
-                        ))
-                    })?
-            }
-            None => regex::Regex::new(s).map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Invalid regex pattern: {}",
-                    e
-                ))
-            })?,
-        }
-    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
-        match flags {
-            Some(_) => {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Cannot use flags with compiled pattern",
-                ));
-            }
-            None => pat.regex,
-        }
-    } else {
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
-    };
-
-
-    if let Some(caps) = re.captures(&string) {
-        if let Some(matched) = caps.get(0) {
-            // Check that the match starts exactly at the position `p`
-            if matched.start() == 0 {
-                let last_group_name = re.capture_names()
-                    .filter_map(|name| name)
-                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
-                    .last();
-                let byte_to_code_point = get_byte_to_code_point(&string);
-
-                return Ok(Some(Match {
-                    string: String::from(matched.as_str()),
-                    re: Pattern { regex: re },
-                    pos: byte_to_code_point[matched.start()],
-                    endpos: byte_to_code_point[matched.end()],
-                    lastgroup: last_group_name,
-                }));
-            }
-        }
-    }
-    Ok(None) // No valid match found or the match does not start at 'p'
-}
-
-#[pyfunction]
-fn fullmatch(
-    py: Python,
-    pattern: PyObject,
-    string: String,
-    flags: Option<i32>,
-) -> PyResult<Option<Match>> {
-    let re: regex::Regex = if let Ok(s) = pattern.extract::<&str>(py) {
-        if string.is_empty() {
-            return Ok(None)
-        }
-        match flags {
-            Some(given_flags) => {
-                regex::Regex::new(python_regex_flags_to_inline(s, given_flags).as_str())
-                    .map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                            "Invalid regex pattern: {}",
-                            e
-                        ))
-                    })?
-            }
-            None => regex::Regex::new(s).map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
-                    "Invalid regex pattern: {}",
-                    e
-                ))
-            })?,
-        }
-    } else if let Ok(pat) = pattern.extract::<Pattern>(py) {
-        match flags {
-            Some(_) => {
-                return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                    "Cannot use flags with compiled pattern",
-                ));
-            }
-            None => pat.regex,
-        }
-    } else {
-        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Pattern must be a string or a Pattern object"));
-    };
-
-    if let Some(caps) = re.captures(&string) {
-        if let Some(matched) = caps.get(0) {
-            if matched.start() == 0 && matched.end() == string.len() {
-                let last_group_name = re.capture_names()
-                    .filter_map(|name| name)
-                    .filter_map(|name| caps.name(name).map(|_| name.to_string()))
-                    .last();
-                let byte_to_code_point = get_byte_to_code_point(&string);
-
-                return Ok(Some(Match {
-                    string: String::from(matched.as_str()),
-                    re: Pattern { regex: re },
-                    pos: byte_to_code_point[matched.start()],
-                    endpos: byte_to_code_point[matched.end()],
-                    lastgroup: last_group_name,
-                }));
-            }
-        }
-    }
-    Ok(None)
-}
-
 
 #[pyfunction]
 fn escape(pattern: &str) -> PyResult<String> {
@@ -410,33 +201,20 @@ fn escape(pattern: &str) -> PyResult<String> {
 }
 
 #[pymodule]
-#[pyo3(name = "regexrs")]
-fn regexrs(py: Python, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "re_rs")]
+fn re_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Pattern>()?;
     m.add_class::<Match>()?;
-    m.add("NOFLAG", 0);
-    m.add("IGNORECASE", 2);
-    m.add("I", 2);
-    m.add("MULTILINE", 8);
-    m.add("M", 8);
-    m.add("DOTALL", 16);
-    m.add("S", 16);
-    m.add("VERBOSE", 64);
-    m.add("X", 64);
-    let compile_func = wrap_pyfunction!(compile, m)?;
-    let findall_func = wrap_pyfunction!(findall, m)?;
-    let match_func = wrap_pyfunction!(r#match, m)?;
-    let fullmatch_func = wrap_pyfunction!(fullmatch, m)?;
-    let escape_func = wrap_pyfunction!(escape, m)?;
-    compile_func.setattr("__module__", "regexrs");
-    findall_func.setattr("__module__", "regexrs");
-    match_func.setattr("__module__", "regexrs");
-    fullmatch_func.setattr("__module__", "regexrs");
-    escape_func.setattr("__module__", "regexrs");
-    m.add_function(compile_func)?;
-    m.add_function(findall_func)?;
-    m.add_function(match_func)?;
-    m.add_function(fullmatch_func)?;
-    m.add_function(escape_func)?;
+    m.add("NOFLAG", 0)?;
+    m.add("IGNORECASE", 2)?;
+    m.add("I", 2)?;
+    m.add("MULTILINE", 8)?;
+    m.add("M", 8)?;
+    m.add("DOTALL", 16)?;
+    m.add("S", 16)?;
+    m.add("VERBOSE", 64)?;
+    m.add("X", 64)?;
+    m.add_function(wrap_pyfunction!(compile, m)?)?;
+    m.add_function(wrap_pyfunction!(escape, m)?)?;
     Ok(())
 }

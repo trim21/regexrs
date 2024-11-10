@@ -1,1 +1,7 @@
-/target
+target
+build/
+dist/
+*.py[cd]
+target/
+.vscode/
+.idea/
